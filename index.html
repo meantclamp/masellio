@@ -1,0 +1,272 @@
+// app/page.tsx
+
+'use client'
+
+import { useState, useEffect } from 'react'
+import { signIn, signOut, useSession } from 'next-auth/react'
+import { motion } from 'framer-motion'
+
+// ────────────────────────────────────────────────
+// Productos de ejemplo (puedes reemplazarlos después con datos de DB)
+const productos = [
+  {
+    id: 'p1',
+    nombre: 'Playera Oversize Negra Premium',
+    precio: 450,
+    imagen: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&auto=format&fit=crop&q=80',
+    descripcion: 'Algodón peinado 220 gsm • Corte oversize • Estilo minimal',
+  },
+  {
+    id: 'p2',
+    nombre: 'Hoodie Gris Oscuro con Capucha',
+    precio: 980,
+    imagen: 'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?w=800&auto=format&fit=crop&q=80',
+    descripcion: 'Fleece interior cepillado • 350 gsm • Cordones ajustables',
+  },
+  {
+    id: 'p3',
+    nombre: 'Jogger Negro con Bolsillos Laterales',
+    precio: 720,
+    imagen: 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&auto=format&fit=crop&q=80',
+    descripcion: 'Tela french terry • Elástico en tobillos • Ajuste relajado',
+  },
+]
+
+type Producto = typeof productos[0]
+type ItemCarrito = Producto & { cantidad: number }
+
+// ────────────────────────────────────────────────
+// Header
+// ────────────────────────────────────────────────
+function Header() {
+  const { data: session } = useSession()
+
+  return (
+    <header className="bg-black border-b border-gray-800/40 sticky top-0 z-50 backdrop-blur-sm">
+      <div className="max-w-7xl mx-auto px-5 py-5 flex justify-between items-center">
+        <h1 className="text-3xl md:text-4xl font-black tracking-tight">MASSELIO</h1>
+
+        <nav className="flex items-center gap-8 text-base">
+          <a href="#productos" className="hover:text-gray-300 transition-colors">Productos</a>
+          <a href="#carrito" className="hover:text-gray-300 transition-colors">Carrito</a>
+
+          {session ? (
+            <button
+              onClick={() => signOut({ callbackUrl: '/' })}
+              className="text-white/80 hover:text-white transition-colors font-medium"
+            >
+              Cerrar sesión
+            </button>
+          ) : (
+            <button
+              onClick={() => signIn()}
+              className="text-white/80 hover:text-white transition-colors font-medium"
+            >
+              Iniciar sesión
+            </button>
+          )}
+        </nav>
+      </div>
+    </header>
+  )
+}
+
+// ────────────────────────────────────────────────
+// Producto Card
+// ────────────────────────────────────────────────
+function ProductoCard({ producto, onAdd }: { producto: Producto; onAdd: (p: Producto) => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5 }}
+      whileHover={{ scale: 1.03, transition: { duration: 0.2 } }}
+      className="bg-gray-900/60 rounded-2xl overflow-hidden border border-gray-800 hover:border-gray-600 transition-all duration-300"
+    >
+      <div className="aspect-[4/5] relative">
+        <img
+          src={producto.imagen}
+          alt={producto.nombre}
+          className="object-cover w-full h-full"
+          loading="lazy"
+        />
+      </div>
+      <div className="p-6">
+        <h3 className="font-semibold text-lg mb-2 line-clamp-1">{producto.nombre}</h3>
+        <p className="text-gray-400 text-sm mb-4 line-clamp-2">{producto.descripcion}</p>
+        <div className="flex justify-between items-center">
+          <span className="text-xl font-bold">${producto.precio.toLocaleString('es-MX')}</span>
+          <button
+            onClick={() => onAdd(producto)}
+            className="bg-white text-black px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+          >
+            Añadir
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ────────────────────────────────────────────────
+// Página principal
+// ────────────────────────────────────────────────
+export default function Home() {
+  const [carrito, setCarrito] = useState<ItemCarrito[]>([])
+
+  // Cargar carrito al montar
+  useEffect(() => {
+    const guardado = localStorage.getItem('masselio-carrito')
+    if (guardado) {
+      setCarrito(JSON.parse(guardado))
+    }
+  }, [])
+
+  // Guardar carrito cada vez que cambie
+  useEffect(() => {
+    localStorage.setItem('masselio-carrito', JSON.stringify(carrito))
+  }, [carrito])
+
+  const agregarAlCarrito = (producto: Producto) => {
+    setCarrito(prev => {
+      const existe = prev.find(item => item.id === producto.id)
+      if (existe) {
+        return prev.map(item =>
+          item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item
+        )
+      }
+      return [...prev, { ...producto, cantidad: 1 }]
+    })
+  }
+
+  const cambiarCantidad = (id: string, delta: number) => {
+    setCarrito(prev =>
+      prev.map(item =>
+        item.id === id
+          ? { ...item, cantidad: Math.max(1, item.cantidad + delta) }
+          : item
+      )
+    )
+  }
+
+  const eliminarItem = (id: string) => {
+    setCarrito(prev => prev.filter(item => item.id !== id))
+  }
+
+  const total = carrito.reduce((sum, item) => sum + item.precio * item.cantidad, 0)
+
+  return (
+    <div className="min-h-screen bg-black text-white flex flex-col">
+      <Header />
+
+      <main className="flex-1">
+        {/* Hero */}
+        <section className="py-32 md:py-48 text-center px-6">
+          <motion.h1
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9 }}
+            className="text-6xl md:text-8xl font-black tracking-tighter mb-6"
+          >
+            MASSELIO
+          </motion.h1>
+          <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto">
+            Ropa urbana premium • Calidad que se siente • Estilo que destaca
+          </p>
+        </section>
+
+        {/* Productos */}
+        <section id="productos" className="py-16 px-5 md:px-6 max-w-7xl mx-auto">
+          <h2 className="text-5xl md:text-6xl font-bold text-center mb-16">Colección</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
+            {productos.map(producto => (
+              <ProductoCard
+                key={producto.id}
+                producto={producto}
+                onAdd={agregarAlCarrito}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Carrito */}
+        <section id="carrito" className="py-20 px-5 md:px-6 bg-gray-950 border-t border-gray-800">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="text-5xl font-bold text-center mb-12">Tu Carrito</h2>
+
+            {carrito.length === 0 ? (
+              <p className="text-center text-gray-400 text-2xl py-24">Tu carrito está vacío</p>
+            ) : (
+              <div className="space-y-8">
+                {carrito.map(item => (
+                  <div
+                    key={item.id}
+                    className="flex flex-col sm:flex-row gap-6 bg-gray-900 p-6 rounded-2xl border border-gray-800"
+                  >
+                    <div className="w-full sm:w-32 aspect-square flex-shrink-0">
+                      <img
+                        src={item.imagen}
+                        alt={item.nombre}
+                        className="object-cover w-full h-full rounded-xl"
+                      />
+                    </div>
+
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold mb-1">{item.nombre}</h3>
+                      <p className="text-gray-400">
+                        ${item.precio.toLocaleString('es-MX')} × {item.cantidad}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-8 sm:gap-12 mt-4 sm:mt-0">
+                      <div className="flex items-center border border-gray-700 rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => cambiarCantidad(item.id, -1)}
+                          className="px-5 py-3 hover:bg-gray-800 transition-colors"
+                        >
+                          −
+                        </button>
+                        <span className="px-6 font-medium">{item.cantidad}</span>
+                        <button
+                          onClick={() => cambiarCantidad(item.id, 1)}
+                          className="px-5 py-3 hover:bg-gray-800 transition-colors"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => eliminarItem(item.id)}
+                        className="text-red-400 hover:text-red-300 transition-colors"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="mt-12 text-right">
+                  <p className="text-3xl md:text-4xl font-bold">
+                    Total: ${total.toLocaleString('es-MX')}
+                  </p>
+
+                  <button
+                    onClick={() => alert('Compra simulada completada — Gracias por tu pedido')}
+                    className="mt-8 w-full sm:w-auto bg-white text-black px-12 py-5 rounded-2xl text-xl font-bold hover:bg-gray-200 transition-colors"
+                  >
+                    Proceder al pago
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
+
+      <footer className="bg-black border-t border-gray-800/50 py-10 text-center text-gray-500 text-sm">
+        Masselio © {new Date().getFullYear()} • Hermosillo, Sonora • Envíos nacionales
+      </footer>
+    </div>
+  )
+}
