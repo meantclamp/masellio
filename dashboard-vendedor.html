@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hear - Dashboard Vendedor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root { --primary: #3b82f6; }
+    .card { transition: all 0.2s; }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); }
+    .modal { animation: fadeIn 0.2s; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  </style>
+</head>
+<body class="bg-zinc-950 text-white font-sans">
+
+  <!-- Header -->
+  <header class="bg-zinc-900 border-b border-zinc-800 px-8 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center text-xl font-bold">H</div>
+      <span class="text-2xl font-semibold tracking-tighter">Hear</span>
+      <span class="text-zinc-500 text-sm">Vendedor</span>
+    </div>
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-2 bg-zinc-800 rounded-2xl px-4 py-2 text-sm">
+        <i class="fa-solid fa-store"></i>
+        <span>Tienda: Mi Ropa MX</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <img src="https://picsum.photos/id/64/40/40" class="w-9 h-9 rounded-2xl object-cover border border-zinc-700">
+        <div>
+          <div class="text-sm font-medium">Carlos López</div>
+          <div class="text-xs text-zinc-500">Guadalajara, Jalisco</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex h-[calc(100vh-73px)]">
+
+    <!-- LEFT PANEL -->
+    <div class="w-3/5 flex flex-col border-r border-zinc-800">
+
+      <!-- Filtro de tiempo -->
+      <div class="p-6 border-b border-zinc-800 bg-zinc-900 flex items-center justify-between">
+        <div class="flex gap-2" id="time-filters">
+          <button onclick="changeFilter(30)" class="time-btn active px-6 py-2 rounded-3xl text-sm font-medium bg-zinc-800">Últimos 30 días</button>
+          <button onclick="changeFilter(15)" class="time-btn px-6 py-2 rounded-3xl text-sm font-medium hover:bg-zinc-800">15 días</button>
+          <button onclick="changeFilter(7)" class="time-btn px-6 py-2 rounded-3xl text-sm font-medium hover:bg-zinc-800">7 días</button>
+          <button onclick="changeFilter(1)" class="time-btn px-6 py-2 rounded-3xl text-sm font-medium hover:bg-zinc-800">1 día</button>
+        </div>
+        <div class="text-xs text-zinc-500">Actualizado hace 2 min</div>
+      </div>
+
+      <!-- Métricas rápidas -->
+      <div class="grid grid-cols-3 gap-6 p-6 bg-zinc-900 border-b border-zinc-800">
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <div class="text-zinc-400 text-sm">Ventas totales</div>
+          <div class="text-5xl font-semibold mt-4" id="ventas-total">$48,920</div>
+          <div class="flex items-center gap-2 mt-4 text-emerald-400">
+            <i class="fa-solid fa-arrow-trend-up"></i>
+            <span id="ventas-change">+18.4% vs mes pasado</span>
+          </div>
+        </div>
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="text-zinc-400 text-sm">Visitantes</div>
+              <div class="text-5xl font-semibold mt-4" id="visitantes">12,450</div>
+            </div>
+            <i onclick="toggleVisitantes()" id="eye-icon" class="fa-solid fa-eye text-3xl cursor-pointer text-zinc-400 hover:text-white"></i>
+          </div>
+        </div>
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <div class="text-zinc-400 text-sm">Guardados en carritos</div>
+          <div class="text-5xl font-semibold mt-4" id="guardados">387</div>
+        </div>
+      </div>
+
+      <!-- Gráfica mensual -->
+      <div class="p-6 flex-1 flex flex-col bg-zinc-900">
+        <div class="text-zinc-400 text-sm mb-4">Ventas mensuales</div>
+        <canvas id="salesChart" class="flex-1"></canvas>
+      </div>
+
+      <!-- Pedidos y Pagos -->
+      <div class="grid grid-cols-2 gap-6 p-6 bg-zinc-900 border-t border-zinc-800">
+        <div onclick="showPedidosModal()" class="card bg-zinc-900 rounded-3xl p-6 cursor-pointer hover:bg-zinc-800">
+          <div class="flex justify-between">
+            <div>
+              <div class="text-emerald-400 text-2xl font-semibold" id="pedidos-entregar">12</div>
+              <div class="text-zinc-400">Pedidos por entregar</div>
+            </div>
+            <i class="fa-solid fa-boxes-packing text-5xl text-emerald-400/30"></i>
+          </div>
+        </div>
+        <div onclick="showPagosModal()" class="card bg-zinc-900 rounded-3xl p-6 cursor-pointer hover:bg-zinc-800">
+          <div class="flex justify-between">
+            <div>
+              <div class="text-amber-400 text-2xl font-semibold" id="pagos-pendientes">5</div>
+              <div class="text-zinc-400">Pagos pendientes</div>
+            </div>
+            <i class="fa-solid fa-clock text-5xl text-amber-400/30"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL - MAPA -->
+    <div class="w-2/5 flex flex-col">
+      <div class="bg-zinc-900 p-6 border-b border-zinc-800 flex items-center gap-8">
+        <div class="flex items-center gap-2"><span class="text-emerald-400 text-xl">🟢</span> Entregados</div>
+        <div class="flex items-center gap-2"><span class="text-amber-400 text-xl">🟡</span> Por entregar</div>
+        <div class="flex items-center gap-2"><span class="text-red-400 text-xl">🔴</span> Pendiente pago</div>
+      </div>
+      <div id="map" class="flex-1"></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM - MIS PRODUCTOS -->
+  <div class="border-t border-zinc-800 bg-zinc-900 p-6">
+    <div class="flex items-center justify-between mb-6">
+      <div class="text-lg font-medium">Mis productos</div>
+      <div class="flex gap-4 text-zinc-400">
+        <button onclick="sortProducts('vistas')" class="flex items-center gap-1 hover:text-white"><i class="fa-solid fa-arrow-up"></i></button>
+        <button onclick="sortProducts('comprados')" class="flex items-center gap-1 hover:text-white"><i class="fa-solid fa-arrow-down"></i></button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6" id="products-grid">
+      <!-- JS llena esto -->
+    </div>
+  </div>
+
+  <!-- MODALES -->
+  <!-- Modal Pedidos -->
+  <div id="modal-pedidos" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 modal">
+    <div class="bg-zinc-900 rounded-3xl w-[90%] max-w-4xl max-h-[90vh] overflow-auto">
+      <div class="p-6 border-b border-zinc-800 flex justify-between">
+        <div class="font-semibold text-xl">Pedidos por entregar</div>
+        <button onclick="hideModal('pedidos')" class="text-3xl leading-none">&times;</button>
+      </div>
+      <div class="p-6" id="pedidos-list"></div>
+    </div>
+  </div>
+
+  <!-- Modal Pagos pendientes -->
+  <div id="modal-pagos" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 modal">
+    <div class="bg-zinc-900 rounded-3xl w-[90%] max-w-4xl max-h-[90vh] overflow-auto">
+      <div class="p-6 border-b border-zinc-800 flex justify-between">
+        <div class="font-semibold text-xl">Pagos pendientes</div>
+        <button onclick="hideModal('pagos')" class="text-3xl leading-none">&times;</button>
+      </div>
+      <div class="p-6" id="pagos-list"></div>
+    </div>
+  </div>
+
+  <!-- Modal Estadísticas producto -->
+  <div id="modal-stats" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 modal">
+    <div class="bg-zinc-900 rounded-3xl w-[480px] p-8">
+      <div class="flex justify-end"><button onclick="hideModal('stats')" class="text-3xl">&times;</button></div>
+      <div id="stats-content" class="text-center"></div>
+    </div>
+  </div>
+
+  <script>
+    // Datos simulados
+    let currentFilter = 30;
+    let ventasTotal = 48920;
+    let visitantes = 12450;
+    let guardados = 387;
+
+    const orders = [
+      {id: 1001, cliente: "Ana García", tel: "3312345678", dir: "Av. Vallarta 1234", lat: 20.6597, lng: -103.3496, total: 1250, metodo: "transferencia", pagado: false, entregado: false, comprobante: "https://picsum.photos/id/201/600/800"},
+      {id: 1002, cliente: "Luis Morales", tel: "3323456789", dir: "López Mateos 567", lat: 20.6734, lng: -103.3702, total: 890, metodo: "efectivo", pagado: true, entregado: false},
+      {id: 1003, cliente: "María López", tel: "3334567890", dir: "Chapultepec 890", lat: 20.6660, lng: -103.3918, total: 450, metodo: "transferencia", pagado: true, entregado: true},
+      // más órdenes...
+    ];
+
+    const products = [
+      {id:1, nombre:"Sudadera Oversize", precio:450, vistas:1243, guardados:87, vendidos:32, img:"https://picsum.photos/id/20/400/400", inventario:45},
+      {id:2, nombre:"Jeans Slim Fit", precio:620, vistas:987, guardados:54, vendidos:28, img:"https://picsum.photos/id/29/400/400", inventario:12},
+      // más productos...
+    ];
+
+    // Mapa
+    let map, markers = [];
+    function initMap() {
+      map = L.map('map').setView([20.6597, -103.3496], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: ''}).addTo(map);
+      renderMarkers();
+    }
+
+    function renderMarkers() {
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
+      orders.forEach(o => {
+        let color = o.entregado ? '#10b981' : o.pagado ? '#eab308' : '#ef4444';
+        let marker = L.circleMarker([o.lat, o.lng], {radius: 10, fillColor: color, color: '#fff', weight: 3, opacity: 1}).addTo(map);
+        marker.bindPopup(`<b>${o.cliente}</b><br>$${o.total}`);
+        markers.push(marker);
+      });
+    }
+
+    // Gráfica
+    let salesChart;
+    function createChart() {
+      const ctx = document.getElementById('salesChart');
+      if (salesChart) salesChart.destroy();
+      salesChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],
+          datasets: [
+            { label: 'Este año', data: [3200,4100,3800,5200,4800,6100,5500,6700,5900,7200,6800,8100], borderColor: '#3b82f6', tension: 0.4 },
+            { label: 'Año pasado', data: [2800,3500,4100,3900,4500,5200,4800,5500,6200,5800,6500,6900], borderColor: '#64748b', tension: 0.4 }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      });
+    }
+
+    // Render productos
+    function renderProducts() {
+      const container = document.getElementById('products-grid');
+      container.innerHTML = products.map(p => `
+        <div class="bg-zinc-900 rounded-3xl overflow-hidden group">
+          <img src="${p.img}" class="w-full h-48 object-cover">
+          <div class="p-4">
+            <div class="font-medium">${p.nombre}</div>
+            <div class="text-emerald-400 text-sm">$${p.precio}</div>
+            <div class="flex justify-between mt-4 text-xs text-zinc-400">
+              <div>👁️ ${p.vistas}</div>
+              <div>🛒 ${p.guardados}</div>
+              <div>📦 ${p.vendidos}</div>
+            </div>
+            <div class="grid grid-cols-4 gap-2 mt-6">
+              <button onclick="showProductStats(${p.id})" class="col-span-1 bg-zinc-800 hover:bg-zinc-700 py-2 rounded-2xl text-xs">📊</button>
+              <button onclick="editProduct(${p.id})" class="col-span-1 bg-zinc-800 hover:bg-zinc-700 py-2 rounded-2xl text-xs">✏️</button>
+              <button onclick="deleteProduct(${p.id})" class="col-span-1 bg-zinc-800 hover:bg-zinc-700 py-2 rounded-2xl text-xs">🗑️</button>
+              <button onclick="addStock(${p.id})" class="col-span-1 bg-blue-600 hover:bg-blue-500 py-2 rounded-2xl text-xs">➕</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Funciones de interacción
+    function changeFilter(days) {
+      currentFilter = days;
+      document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active', 'bg-zinc-800'));
+      event.target.classList.add('active', 'bg-zinc-800');
+
+      // Simular cambio de números
+      ventasTotal = Math.floor(48920 * (days/30));
+      visitantes = Math.floor(12450 * (days/30));
+      guardados = Math.floor(387 * (days/30));
+      document.getElementById('ventas-total').textContent = '$' + ventasTotal.toLocaleString();
+      document.getElementById('visitantes').textContent = visitantes.toLocaleString();
+      document.getElementById('guardados').textContent = guardados;
+    }
+
+    function toggleVisitantes() {
+      const el = document.getElementById('visitantes');
+      el.style.opacity = el.style.opacity === '0' ? '1' : '0';
+    }
+
+    function showPedidosModal() {
+      const html = orders.filter(o => o.pagado && !o.entregado).map(o => `
+        <div class="border border-zinc-700 rounded-3xl p-6 mb-6">
+          <div class="flex justify-between">
+            <div><span class="font-mono">#${o.id}</span> • ${o.cliente}</div>
+            <div class="text-emerald-400">$${o.total}</div>
+          </div>
+          <div class="mt-4 text-sm text-zinc-400">${o.dir}</div>
+          <div class="flex gap-3 mt-6">
+            <button onclick="contactWhatsApp('${o.tel}')" class="flex-1 bg-zinc-800 py-3 rounded-2xl">WhatsApp</button>
+            <button onclick="openMaps(${o.lat},${o.lng})" class="flex-1 bg-zinc-800 py-3 rounded-2xl">Ver en Maps</button>
+            <button onclick="markDelivered(${o.id})" class="flex-1 bg-emerald-600 py-3 rounded-2xl">Marcar entregado</button>
+          </div>
+        </div>
+      `).join('');
+      document.getElementById('pedidos-list').innerHTML = html || '<p class="text-center py-12 text-zinc-500">No hay pedidos por entregar</p>';
+      document.getElementById('modal-pedidos').classList.remove('hidden');
+    }
+
+    function showPagosModal() {
+      // similar lógica para pagos pendientes...
+      document.getElementById('modal-pagos').classList.remove('hidden');
+    }
+
+    function hideModal(type) {
+      document.getElementById('modal-' + type).classList.add('hidden');
+    }
+
+    function showProductStats(id) {
+      const p = products.find(pr => pr.id === id);
+      document.getElementById('stats-content').innerHTML = `
+        <img src="${p.img}" class="mx-auto w-48 rounded-3xl mb-8">
+        <div class="text-3xl font-semibold">${p.nombre}</div>
+        <div class="grid grid-cols-3 gap-8 mt-12 text-center">
+          <div><div class="text-4xl font-bold text-blue-400">${p.vistas}</div><div class="text-xs text-zinc-400">Vistas</div></div>
+          <div><div class="text-4xl font-bold text-emerald-400">${p.guardados}</div><div class="text-xs text-zinc-400">Guardados</div></div>
+          <div><div class="text-4xl font-bold text-purple-400">${p.vendidos}</div><div class="text-xs text-zinc-400">Vendidos</div></div>
+        </div>
+      `;
+      document.getElementById('modal-stats').classList.remove('hidden');
+    }
+
+    function contactWhatsApp(tel) {
+      window.open(`https://wa.me/52${tel}`, '_blank');
+    }
+
+    function openMaps(lat, lng) {
+      window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
+    }
+
+    function markDelivered(id) {
+      alert('Pedido #' + id + ' marcado como entregado ✅');
+      // aquí iría update a backend
+      hideModal('pedidos');
+    }
+
+    function sortProducts(criteria) {
+      alert('Ordenando por ' + criteria);
+      // lógica real aquí
+    }
+
+    function editProduct(id) { alert('Abrir editor del producto #' + id); }
+    function deleteProduct(id) { if(confirm('¿Borrar producto?')) alert('Producto eliminado'); }
+    function addStock(id) { alert('Agregar existencia al producto #' + id); }
+
+    // Init
+    window.onload = () => {
+      initMap();
+      createChart();
+      renderProducts();
+      document.querySelector('.time-btn').classList.add('active', 'bg-zinc-800');
+    };
+  </script>
+</body>
+</html>
